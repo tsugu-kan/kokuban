@@ -1,0 +1,400 @@
+<title>今週の黒板</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yomogi&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@700&display=swap">
+<style>
+/* Layout: 上に黒板プレビュー(店頭の黒板そのもの)、下に曜日ごとの編集カード、最後に品目と価格の台帳 */
+:root{
+  --bg:#f6f3ef; --surface:#ffffff; --fg:#2a2420; --muted:#7a6e66; --line:#e4ddd5;
+  --accent:#a3322a; --accent-soft:#f6e3df; --pork:#c66b7a; --beef:#8c2f25; --other:#6b6a3a;
+  --fixed:#5b6670;
+  --board:#24392f; --board-edge:#5a3e2b; --chalk:#f2efe6; --chalk-dim:#b9c4b8; --chalk-red:#f29a8e; --chalk-yellow:#f0d77a;
+  --f-ui:"Zen Kaku Gothic New",system-ui,sans-serif; --f-chalk:"Yomogi","Zen Kaku Gothic New",cursive; --f-head:"Zen Old Mincho","Hiragino Mincho ProN",serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1b1715; --surface:#25201d; --fg:#efe7e1; --muted:#a69a91; --line:#3a332e;
+  --accent:#e2786b; --accent-soft:#3c2522; --pork:#e099a5; --beef:#e2786b; --other:#c9c78a; --fixed:#9fb0bd;
+  color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#1b1715; --surface:#25201d; --fg:#efe7e1; --muted:#a69a91; --line:#3a332e;
+  --accent:#e2786b; --accent-soft:#3c2522; --pork:#e099a5; --beef:#e2786b; --other:#c9c78a; --fixed:#9fb0bd;
+  color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-direction:column;gap:10px}
+h1{font-family:var(--f-head);font-size:1.6rem;margin:0;text-wrap:balance;letter-spacing:.02em}
+.sub{color:var(--muted);font-size:.85rem;margin:0}
+.weeknav{display:flex;align-items:center;gap:8px}
+.weeknav .range{flex:1;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 12px;min-height:40px}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+button.small{min-height:34px;padding:4px 10px;font-size:.85rem}
+
+/* 黒板 */
+.board{background:var(--board);border:10px solid var(--board-edge);border-radius:6px;padding:18px 18px 14px;color:var(--chalk);font-family:var(--f-chalk);
+  box-shadow:inset 0 0 40px rgba(0,0,0,.35);position:relative}
+.board .bt{font-size:1.25rem;text-align:center;color:var(--chalk-yellow);margin-bottom:10px;letter-spacing:.1em}
+.board ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.board li{display:grid;grid-template-columns:3.6em 1fr auto;gap:8px;align-items:baseline;border-bottom:1px dashed rgba(242,239,230,.18);padding-bottom:5px;font-size:1.08rem}
+.board li:last-child{border-bottom:0}
+.board .d{color:var(--chalk-dim);font-variant-numeric:tabular-nums}
+.board .d.sat{color:#9cc3e6}.board .d.sun{color:var(--chalk-red)}
+.board .n{min-width:0}
+.board .p{color:var(--chalk-yellow);white-space:nowrap;font-variant-numeric:tabular-nums}
+.board .ev{color:var(--chalk-red)}
+.board .closed{color:var(--chalk-dim)}
+.boardbar{display:flex;gap:8px;flex-wrap:wrap}
+.boardbar button{flex:1}
+.toast{font-size:.85rem;color:var(--muted);min-height:1.2em}
+
+/* 曜日カード */
+h2{font-size:1rem;margin:0;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.days{display:flex;flex-direction:column;gap:10px}
+.day{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.day .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.day .date{font-weight:700;font-variant-numeric:tabular-nums;min-width:5.5em}
+.chip{font-size:.75rem;border-radius:999px;padding:1px 9px;border:1px solid currentColor;letter-spacing:.04em}
+.chip.pork{color:var(--pork)}.chip.beef{color:var(--beef)}.chip.other{color:var(--other)}.chip.fixed{color:var(--fixed)}.chip.ev{color:var(--accent);background:var(--accent-soft);border-color:transparent}
+.day .row{display:grid;grid-template-columns:1fr 6.5em;gap:8px}
+.day select,.day input,.cat input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-height:40px;width:100%;min-width:0}
+.day .price{display:flex;align-items:center;gap:4px}
+.day .price input{text-align:right;font-variant-numeric:tabular-nums}
+.day .acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.lock[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.note{font-size:.8rem;color:var(--muted)}
+
+/* 台帳 */
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+summary{cursor:pointer;font-weight:700}
+.cat{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.cat .ci{display:grid;grid-template-columns:auto 1fr 5.5em auto;gap:8px;align-items:center}
+.cat .ci label{min-width:0;font-size:.9rem}
+.cat .ci input[type=number]{text-align:right;font-variant-numeric:tabular-nums}
+.cat h3{font-size:.8rem;color:var(--muted);margin:10px 0 0;letter-spacing:.06em}
+.addform{margin-top:14px;border-top:1px solid var(--line);padding-top:4px}
+.addrow{display:grid;grid-template-columns:1fr 6.5em auto;gap:8px}
+.addrow input,.addrow select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-height:40px;min-width:0}
+.addrow #newName{grid-column:1/-1}
+.cat .del{color:var(--accent)}
+.rules{font-size:.85rem;color:var(--muted);margin:8px 0 0;padding-left:1.2em}
+.push{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.pushhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips .empty{color:var(--muted);font-size:.85rem}
+.pchip{display:inline-flex;align-items:center;gap:4px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 4px 2px 12px;font-size:.9rem;font-weight:500}
+.pchip button{min-height:28px;min-width:28px;padding:0;border:0;background:transparent;color:inherit;font-size:1rem;border-radius:999px}
+.pushadd{display:grid;grid-template-columns:1fr auto;gap:8px}
+.pushadd select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-height:40px;min-width:0}
+.chip.stock{color:var(--accent);border-style:dashed}
+.chip.tana{color:var(--muted);border-style:dotted}
+.board .star{color:var(--chalk-red);margin-left:4px;font-size:.85em}
+@media (prefers-reduced-motion:no-preference){.board li{transition:opacity .2s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>今週の黒板</h1>
+    <p class="sub">決まった催しは自動で入ります。月・火・木・金のおすすめを考えて、黒板の文面まで作ります。</p>
+    <div class="weeknav">
+      <button id="prev" aria-label="前の週">‹ 前の週</button>
+      <div class="range" id="range"></div>
+      <button id="next" aria-label="次の週">次の週 ›</button>
+    </div>
+  </header>
+
+  <section class="push" aria-label="在庫が多い品">
+    <div class="pushhead"><h2>在庫多め・使いたい品</h2><span class="note" id="tana"></span></div>
+    <div class="chips" id="pushChips"></div>
+    <div class="pushadd">
+      <select id="pushSel" aria-label="優先したい品を選ぶ"></select>
+      <button id="pushAdd">優先に追加</button>
+    </div>
+    <p class="note">ここに入れた品は、黒板に優先して入ります。棚卸のあとに見直してください。</p>
+  </section>
+
+  <section aria-label="黒板プレビュー" style="display:flex;flex-direction:column;gap:8px">
+    <div class="board"><div class="bt">今週のおすすめ</div><ol id="boardList"></ol></div>
+    <div class="boardbar">
+      <button class="primary" id="reroll">おまかせで組み直す</button>
+      <button id="copy">文面をコピー</button>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:10px">
+    <h2>曜日ごとに調整</h2>
+    <div class="days" id="days"></div>
+    <p class="note">「固定」を押した日は、組み直しても変わりません。価格は100gあたり・税抜です。</p>
+  </section>
+
+  <details id="catBox">
+    <summary>品目と価格の台帳</summary>
+    <p class="note">チェックを外した品はおすすめに出しません。価格を変えると次の提案から反映されます。</p>
+    <div class="cat" id="cat"></div>
+    <div class="addform">
+      <h3>品目を追加</h3>
+      <div class="addrow">
+        <input id="newName" placeholder="品名(例: 黒毛和牛 ロース)" aria-label="追加する品名">
+        <select id="newCat" aria-label="種類"><option value="pork">豚</option><option value="beef" selected>牛</option><option value="other">ホルモン他</option></select>
+        <input id="newPrice" type="number" inputmode="numeric" placeholder="価格" aria-label="追加する品の価格">
+        <button id="newAdd">追加</button>
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;justify-content:flex-end"><button class="small" id="resetCat">台帳を初期値に戻す</button></div>
+  </details>
+
+  <details>
+    <summary>お店の決まりごと</summary>
+    <ul class="rules">
+      <li>水曜は毎週「よりどり2P 1000円・ポイント5倍」</li>
+      <li>土日は「焼肉セット 3980円」</li>
+      <li>第2土曜とその翌日曜は「びっくり市」</li>
+      <li>毎月28日・29日は「29の日セール」を最優先</li>
+      <li>1月1日は定休日</li>
+      <li>平日は豚2日・牛2日が基本。木曜はときどきホルモンや煮込用</li>
+      <li>同じ週に同じ品は出さない。前の週に出た品は避けやすくする</li>
+      <li>「在庫多め・使いたい品」に入れた品は最優先で入れる(棚卸は毎月10・20・30日)</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+const DOW=["日","月","火","水","木","金","土"];
+// cat: pork/beef/other, season: cold=秋冬に推す, hot=夏に推す, w=出やすさ
+const DEFAULT_CAT=[
+  {id:"p_usu",name:"豚薄切り",price:148,cat:"pork",on:true,w:1},
+  {id:"p_bara",name:"豚バラ",price:250,cat:"pork",on:true,w:1.4,season:"hot"},
+  {id:"p_barashabu",name:"豚バラしゃぶしゃぶ用",price:290,cat:"pork",on:true,w:1.2,season:"cold"},
+  {id:"p_katashabu",name:"豚肩ロースしゃぶしゃぶ用",price:270,cat:"pork",on:true,w:1.3,season:"cold"},
+  {id:"p_mince",name:"豚ミンチ",price:130,cat:"pork",on:true,w:1.1},
+  {id:"p_aibiki",name:"合挽ミンチ",price:220,cat:"pork",on:true,w:.6},
+  {id:"b_koma",name:"萬野和牛 こま切れ",price:390,cat:"beef",on:true,w:.8},
+  {id:"b_usu",name:"萬野和牛 薄切り",price:490,cat:"beef",on:true,w:.8},
+  {id:"b_akausu",name:"萬野和牛 赤身薄切り",price:690,cat:"beef",on:true,w:2.2},
+  {id:"b_shimousu",name:"萬野和牛 霜降り薄切り",price:790,cat:"beef",on:true,w:1,season:"cold"},
+  {id:"b_akayaki",name:"萬野和牛 赤身焼肉",price:790,cat:"beef",on:true,w:1.3},
+  {id:"b_shimoyaki",name:"萬野和牛 霜降り焼肉",price:790,cat:"beef",on:true,w:1.5},
+  {id:"b_steak",name:"湯煎ステーキ",price:980,cat:"beef",on:true,w:1.1,season:"cold",suffix:"〜"},
+  {id:"k_usu",name:"黒毛和牛 薄切り",price:690,cat:"beef",on:true,w:.8},
+  {id:"k_akausu",name:"黒毛和牛 赤身薄切り",price:790,cat:"beef",on:true,w:.9},
+  {id:"k_yaki",name:"黒毛和牛 焼肉(赤身・霜降MIX)",price:790,cat:"beef",on:true,w:.9},
+  {id:"b_akakatamari",name:"萬野和牛 赤身塊",price:980,cat:"beef",on:false,w:.5},
+  {id:"b_chateau",name:"シャトーブリアン",price:2800,cat:"beef",on:false,w:.2},
+  {id:"o_nikomi",name:"煮込み用",price:430,cat:"other",on:true,w:1.2,season:"cold"},
+  {id:"o_horumon",name:"ミックスホルモン",price:260,cat:"other",on:true,w:1},
+  {id:"o_harami",name:"牛ハラミ",price:780,cat:"other",on:true,w:.7},
+  {id:"o_tan",name:"牛タン",price:850,cat:"other",on:true,w:.6},
+  {id:"o_tare",name:"牛肉タレ漬け",price:590,cat:"other",on:true,w:.5}
+];
+const CAT_LABEL={pork:"豚",beef:"牛",other:"ホルモン他"};
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+let catalog=store.get("kokuban.cat",null)||JSON.parse(JSON.stringify(DEFAULT_CAT));
+// 既存台帳に新しい初期品目を足す
+DEFAULT_CAT.forEach(d=>{if(!catalog.find(c=>c.id===d.id))catalog.push(JSON.parse(JSON.stringify(d)))});
+{const b=catalog.find(c=>c.id==="p_bara");if(b&&b.name==="豚バラ薄切り")b.name="豚バラ";}
+let plans=store.get("kokuban.plans",{});
+// 10/12の週(実績)を前週として入れておく
+if(!plans["2026-10-12"]){plans["2026-10-12"]={seed:true,days:[
+ {kind:"free",itemId:"b_akausu"},{kind:"free",itemId:"p_katashabu"},{kind:"fixed"},{kind:"free",itemId:"b_shimoyaki"},{kind:"free",itemId:"b_steak"},{kind:"fixed"},{kind:"fixed"}]}}
+
+const pad=n=>String(n).padStart(2,"0");
+const key=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+function mondayOf(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());const w=(x.getDay()+6)%7;return addDays(x,-w)}
+let weekStart=addDays(mondayOf(new Date()),7); // 次の週から
+
+function fixedFor(d){
+  const m=d.getMonth()+1,day=d.getDate(),w=d.getDay();
+  if(m===1&&day===1)return{label:"定休日",price:"",tag:"休",cls:"closed"};
+  if(day===28||day===29)return{label:"29の日セール",price:"",tag:"29の日",cls:"ev"};
+  const sat=w===6?d:(w===0?addDays(d,-1):null);
+  if(sat&&sat.getDate()>=8&&sat.getDate()<=14)return{label:"びっくり市",price:"",tag:"びっくり市",cls:"ev"};
+  if(w===3)return{label:"よりどり2P・ポイント5倍",price:"1000円",tag:"よりどり"};
+  if(w===6||w===0)return{label:"焼肉セット",price:"3980円",tag:"焼肉セット"};
+  return null;
+}
+function slotCat(w){ // 月=豚, 火=牛, 木=豚かホルモン, 金=牛
+  if(w===1)return"pork"; if(w===2)return"beef"; if(w===5)return"beef";
+  return Math.random()<.3?"other":"pork";
+}
+function seasonOf(d){const m=d.getMonth()+1;return(m>=10||m<=3)?"cold":(m>=6&&m<=9?"hot":"")}
+function pick(cat,used,lastWeek,d){
+  const s=seasonOf(d);
+  let cands=catalog.filter(c=>c.on&&c.cat===cat&&!used.has(c.id));
+  if(!cands.length)cands=catalog.filter(c=>c.on&&!used.has(c.id));
+  if(!cands.length)return null;
+  const ws=cands.map(c=>{let w=c.w||1;if(c.season&&c.season===s)w*=1.8;if(c.season&&s&&c.season!==s)w*=.4;if(lastWeek.has(c.id))w*=.35;return w});
+  let r=Math.random()*ws.reduce((a,b)=>a+b,0);
+  for(let i=0;i<cands.length;i++){r-=ws[i];if(r<=0)return cands[i]}
+  return cands[cands.length-1];
+}
+function lastWeekSet(){const p=plans[key(addDays(weekStart,-7))];const s=new Set();if(p)p.days.forEach(x=>x.itemId&&s.add(x.itemId));return s}
+function build(keep){
+  const prev=plans[key(weekStart)];
+  const lw=lastWeekSet(),used=new Set(),days=[];
+  for(let i=0;i<7;i++){
+    const d=addDays(weekStart,i),f=fixedFor(d),old=keep&&prev?prev.days[i]:null;
+    if(f){days.push({kind:"fixed",...(old&&old.kind==="fixed"&&old.edited?old:{label:f.label,price:f.price}),edited:old&&old.edited});continue}
+    if(old&&old.kind==="free"&&old.locked){days.push(old);if(old.itemId)used.add(old.itemId);continue}
+    days.push({kind:"free",itemId:null,cat:slotCat(d.getDay())});
+  }
+  // 在庫多めの品を先に置く
+  catalog.filter(c=>c.push&&!used.has(c.id)).forEach(c=>{
+    const slot=findSlot(days,c,i=>!days[i].itemId);
+    if(slot>=0){days[slot].itemId=c.id;days[slot].price=c.price;used.add(c.id)}
+  });
+  days.forEach((x,i)=>{if(x.kind==="free"&&!x.itemId){const it=pick(x.cat,used,lw,addDays(weekStart,i));if(it){x.itemId=it.id;x.price=it.price;used.add(it.id)}}});
+  plans[key(weekStart)]={days};save();
+}
+function findSlot(days,c,ok){
+  const free=days.map((x,i)=>i).filter(i=>days[i].kind==="free"&&!days[i].locked&&ok(i));
+  const dow=i=>addDays(weekStart,i).getDay();
+  const want=c.cat==="other"?free.filter(i=>days[i].cat==="other"||dow(i)===4):free.filter(i=>days[i].cat===c.cat);
+  return (want.length?want:free)[0]??-1;
+}
+function placePush(c){
+  const p=plans[key(weekStart)];if(!p||p.days.some(x=>x.itemId===c.id))return false;
+  const slot=findSlot(p.days,c,i=>{const it=item(p.days[i].itemId);return !(it&&it.push)});
+  if(slot<0)return false;
+  p.days[slot].itemId=c.id;p.days[slot].price=c.price;save();return true;
+}
+function saveCat(){store.set("kokuban.cat",catalog)}
+function lastTana(){ // 直近の棚卸日(10・20・30日。2月は月末)
+  const t=new Date();t.setHours(0,0,0,0);
+  for(let k=0;k<40;k++){const d=addDays(t,-k);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+    if(d.getDate()===10||d.getDate()===20||d.getDate()===30||(last<30&&d.getDate()===last))return d}
+}
+function isTana(d){const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return d.getDate()===10||d.getDate()===20||d.getDate()===30||(last<30&&d.getDate()===last)}
+function renderPush(){
+  const box=document.getElementById("pushChips");box.innerHTML="";
+  const pushed=catalog.filter(c=>c.push);
+  if(!pushed.length){box.innerHTML='<span class="empty">まだありません。下から品を選んで追加してください。</span>'}
+  pushed.forEach(c=>{const s=document.createElement("span");s.className="pchip";s.textContent=c.name;
+    const b=document.createElement("button");b.textContent="×";b.setAttribute("aria-label",c.name+"を優先から外す");
+    b.addEventListener("click",()=>{c.push=false;saveCat();renderPush();render();toast(c.name+"を優先から外しました")});
+    s.appendChild(b);box.appendChild(s)});
+  const sel=document.getElementById("pushSel");sel.innerHTML="";
+  ["pork","beef","other"].forEach(k=>{const og=document.createElement("optgroup");og.label=CAT_LABEL[k];
+    catalog.filter(c=>c.cat===k&&!c.push).forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.name;og.appendChild(o)});
+    if(og.children.length)sel.appendChild(og)});
+  const lt=lastTana();document.getElementById("tana").textContent=lt?`前回の棚卸 ${lt.getMonth()+1}/${lt.getDate()}`:"";
+}
+document.getElementById("pushAdd").addEventListener("click",()=>{
+  const c=item(document.getElementById("pushSel").value);if(!c)return;
+  c.push=true;c.on=true;saveCat();
+  const placed=placePush(c);renderPush();renderCat();render();
+  toast(placed?`${c.name}を今週の黒板に入れました`:`${c.name}を優先にしました。今週は空きがないので、固定を外すか次の週で入ります`);
+});
+function save(){store.set("kokuban.plans",plans)}
+function item(id){return catalog.find(c=>c.id===id)}
+function priceText(x){const it=item(x.itemId);const p=x.price??(it&&it.price);return p===""||p==null?"":`${p}円${it&&it.suffix?it.suffix:""}`}
+
+function render(){
+  let p=plans[key(weekStart)];
+  if(!p||p.seed){build(false);p=plans[key(weekStart)]}
+  const end=addDays(weekStart,6);
+  document.getElementById("range").textContent=`${weekStart.getMonth()+1}/${weekStart.getDate()} 〜 ${end.getMonth()+1}/${end.getDate()}`;
+  const bl=document.getElementById("boardList"),dl=document.getElementById("days");bl.innerHTML="";dl.innerHTML="";
+  p.days.forEach((x,i)=>{
+    const d=addDays(weekStart,i),w=d.getDay(),f=fixedFor(d);
+    // 黒板
+    const li=document.createElement("li");
+    const dc=w===6?"sat":w===0?"sun":"";
+    let name,price,cls="";
+    if(x.kind==="fixed"){name=x.label;price=x.price||"";cls=f&&f.cls||""}
+    else{const it=item(x.itemId);name=it?it.name:"(未定)";price=priceText(x)}
+    li.innerHTML=`<span class="d ${dc}">${d.getDate()}(${DOW[w]})</span><span class="n ${cls}"></span><span class="p"></span>`;
+    li.querySelector(".n").textContent=name;li.querySelector(".p").textContent=price;bl.appendChild(li);
+    // 編集カード
+    const card=document.createElement("div");card.className="day";
+    const top=document.createElement("div");top.className="top";
+    top.innerHTML=`<span class="date">${d.getMonth()+1}/${d.getDate()}(${DOW[w]})</span>`;
+    const chip=document.createElement("span");
+    if(x.kind==="fixed"){chip.className="chip "+(f&&f.cls==="ev"?"ev":"fixed");chip.textContent=f?f.tag:"固定"}
+    else{const it=item(x.itemId);const c=it?it.cat:x.cat;chip.className="chip "+c;chip.textContent="おすすめ・"+CAT_LABEL[c]}
+    top.appendChild(chip);
+    if(x.kind==="free"&&(item(x.itemId)||{}).push){const s=document.createElement("span");s.className="chip stock";s.textContent="在庫多め";top.appendChild(s)}
+    if(isTana(d)){const s=document.createElement("span");s.className="chip tana";s.textContent="棚卸日";top.appendChild(s)}
+    card.appendChild(top);
+    const row=document.createElement("div");row.className="row";
+    if(x.kind==="fixed"){
+      row.innerHTML=`<input id="lab${i}" aria-label="${d.getDate()}日の内容"><input id="pr${i}" aria-label="${d.getDate()}日の価格" placeholder="価格">`;
+      const a=row.children[0],b=row.children[1];a.value=x.label;b.value=x.price||"";
+      a.addEventListener("change",()=>{x.label=a.value;x.edited=true;save();render()});
+      b.addEventListener("change",()=>{x.price=b.value;x.edited=true;save();render()});
+      card.appendChild(row);
+    }else{
+      const sel=document.createElement("select");sel.id="sel"+i;sel.setAttribute("aria-label",`${d.getDate()}日の品目`);
+      ["pork","beef","other"].forEach(c=>{const og=document.createElement("optgroup");og.label=CAT_LABEL[c];catalog.filter(it=>it.cat===c).forEach(it=>{const o=document.createElement("option");o.value=it.id;o.textContent=it.name;og.appendChild(o)});sel.appendChild(og)});
+      sel.value=x.itemId||"";
+      sel.addEventListener("change",()=>{x.itemId=sel.value;x.price=item(sel.value).price;save();render()});
+      const pw=document.createElement("div");pw.className="price";
+      pw.innerHTML=`<input id="price${i}" type="number" inputmode="numeric" aria-label="${d.getDate()}日の価格"><span>円</span>`;
+      const pin=pw.querySelector("input");pin.value=x.price??(item(x.itemId)||{}).price??"";
+      pin.addEventListener("change",()=>{x.price=pin.value===""?"":Number(pin.value);save();render()});
+      row.appendChild(sel);row.appendChild(pw);card.appendChild(row);
+      const acts=document.createElement("div");acts.className="acts";
+      const lock=document.createElement("button");lock.className="small lock";lock.textContent=x.locked?"固定中":"固定";lock.setAttribute("aria-pressed",x.locked?"true":"false");
+      lock.addEventListener("click",()=>{x.locked=!x.locked;save();render()});
+      const alt=document.createElement("button");alt.className="small";alt.textContent="別の案";
+      alt.addEventListener("click",()=>{
+        const used=new Set(p.days.filter((y,j)=>j!==i&&y.itemId).map(y=>y.itemId));used.add(x.itemId);
+        const c=(item(x.itemId)||{}).cat||x.cat;const it=pick(c,used,lastWeekSet(),d);
+        if(it){x.itemId=it.id;x.price=it.price;save();render()}else toast("ほかに出せる品がありません")});
+      acts.appendChild(alt);acts.appendChild(lock);card.appendChild(acts);
+    }
+    dl.appendChild(card);
+  });
+}
+function boardText(){
+  const p=plans[key(weekStart)];const end=addDays(weekStart,6);
+  const lines=[`${weekStart.getMonth()+1}/${weekStart.getDate()}〜${end.getMonth()+1}/${end.getDate()}`];
+  p.days.forEach((x,i)=>{const d=addDays(weekStart,i);const name=x.kind==="fixed"?x.label:(item(x.itemId)||{}).name||"";const pr=x.kind==="fixed"?(x.price||""):priceText(x);
+    lines.push(`${DOW[d.getDay()]} ${d.getDate()}　${name}${pr?"　"+pr:""}`)});
+  return lines.join("\n");
+}
+let tt;function toast(m){const t=document.getElementById("toast");t.textContent=m;clearTimeout(tt);tt=setTimeout(()=>t.textContent="",2500)}
+document.getElementById("copy").addEventListener("click",async()=>{
+  const txt=boardText();
+  try{await navigator.clipboard.writeText(txt);toast("黒板の文面をコピーしました")}
+  catch(e){const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast("黒板の文面をコピーしました")}catch(_){toast("コピーできませんでした。黒板を長押しして選択してください")}ta.remove()}
+});
+document.getElementById("reroll").addEventListener("click",()=>{build(true);render();toast("固定した日以外を組み直しました")});
+document.getElementById("prev").addEventListener("click",()=>{weekStart=addDays(weekStart,-7);render()});
+document.getElementById("next").addEventListener("click",()=>{weekStart=addDays(weekStart,7);render()});
+
+function renderCat(){
+  const box=document.getElementById("cat");box.innerHTML="";
+  ["pork","beef","other"].forEach(c=>{
+    const h=document.createElement("h3");h.textContent=CAT_LABEL[c];box.appendChild(h);
+    catalog.filter(it=>it.cat===c).forEach(it=>{
+      const r=document.createElement("div");r.className="ci";
+      r.innerHTML=`<input type="checkbox" id="on_${it.id}"><label for="on_${it.id}"></label><input type="number" inputmode="numeric" id="cp_${it.id}" aria-label="${it.name}の価格">`;
+      r.querySelector("label").textContent=it.name;
+      const cb=r.children[0],pr=r.children[2];cb.checked=it.on;pr.value=it.price;
+      cb.addEventListener("change",()=>{it.on=cb.checked;store.set("kokuban.cat",catalog)});
+      pr.addEventListener("change",()=>{it.price=Number(pr.value);store.set("kokuban.cat",catalog)});
+      if(it.custom){r.classList.add("custom");const del=document.createElement("button");del.className="small del";del.textContent="削除";del.setAttribute("aria-label",it.name+"を削除");
+        del.addEventListener("click",()=>{if(del.dataset.armed){catalog=catalog.filter(c=>c.id!==it.id);saveCat();renderCat();renderPush();render();toast(it.name+"を削除しました")}else{del.dataset.armed="1";del.textContent="本当に?";setTimeout(()=>{delete del.dataset.armed;del.textContent="削除"},3000)}});
+        r.appendChild(del)}
+      box.appendChild(r)})});
+}
+document.getElementById("newAdd").addEventListener("click",()=>{
+  const n=document.getElementById("newName"),c=document.getElementById("newCat"),p=document.getElementById("newPrice");
+  const name=n.value.trim();if(!name){toast("品名を入れてください");n.focus();return}
+  if(catalog.some(x=>x.name===name)){toast("同じ名前の品がもうあります");return}
+  catalog.push({id:"u_"+Date.now(),name,cat:c.value,price:p.value===""?"":Number(p.value),on:true,w:1,custom:true});
+  saveCat();n.value="";p.value="";renderCat();renderPush();render();toast(name+"を台帳に追加しました");
+});
+const confirmReset={armed:false};
+document.getElementById("resetCat").addEventListener("click",e=>{
+  if(!confirmReset.armed){confirmReset.armed=true;e.target.textContent="もう一度押すと戻します";setTimeout(()=>{confirmReset.armed=false;e.target.textContent="台帳を初期値に戻す"},3000);return}
+  catalog=JSON.parse(JSON.stringify(DEFAULT_CAT));store.set("kokuban.cat",catalog);renderCat();renderPush();render();toast("台帳を初期値に戻しました");e.target.textContent="台帳を初期値に戻す";confirmReset.armed=false});
+renderCat();renderPush();render();
+</script>
